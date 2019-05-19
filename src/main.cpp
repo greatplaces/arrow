@@ -311,9 +311,9 @@ void UpdatePreferredDownload(CNode* node, CNodeState* state)
 }
 
 // Returns time at which to timeout block request (nTime in microseconds)
-int64_t GetBlockTimeout(int64_t nTime, int nValidatedQueuedBefore, const Consensus::Params &consensusParams)
+int64_t GetBlockTimeout(int64_t nTime, int nValidatedQueuedBefore, const Consensus::Params &consensusParams, int nHeight)
 {
-    return nTime + 500000 * consensusParams.nPowTargetSpacing * (4 + nValidatedQueuedBefore);
+    return nTime + 500000 * consensusParams.PoWTargetSpacing(nHeight) * (4 + nValidatedQueuedBefore);
 }
 
 void InitializeNode(NodeId nodeid, const CNode *pnode) {
@@ -368,7 +368,8 @@ void MarkBlockAsInFlight(NodeId nodeid, const uint256& hash, const Consensus::Pa
     MarkBlockAsReceived(hash);
 
     int64_t nNow = GetTimeMicros();
-    QueuedBlock newentry = {hash, pindex, nNow, pindex != NULL, GetBlockTimeout(nNow, nQueuedValidatedHeaders, consensusParams)};
+    int nHeight = pindex != NULL ? pindex->nHeight : chainActive.Height(); // Help block timeout computation
+    QueuedBlock newentry = {hash, pindex, nNow, pindex != NULL, GetBlockTimeout(nNow, nQueuedValidatedHeaders, consensusParams, nHeight)};
     nQueuedValidatedHeaders += newentry.fValidatedHeaders;
     list<QueuedBlock>::iterator it = state->vBlocksInFlight.insert(state->vBlocksInFlight.end(), newentry);
     state->nBlocksInFlight++;
@@ -2427,6 +2428,9 @@ void ThreadScriptCheck() {
 // we're being fed a bad chain (blocks being generated much
 // too slowly or too quickly).
 //
+// When parameter nPowTargetSpacing is not set, the default value of 0
+// means use the block height of the best header to determine target spacing.
+// Setting the parameter value is useful for testing.
 void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const CBlockIndex *const &bestHeader,
                     int64_t nPowTargetSpacing)
 {
@@ -2438,14 +2442,36 @@ void PartitionCheck(bool (*initialDownloadCheck)(), CCriticalSection& cs, const 
 
     const int SPAN_HOURS=4;
     const int SPAN_SECONDS=SPAN_HOURS*60*60;
+
+    LOCK(cs);
+
+    int bestHeaderHeight = bestHeader->nHeight;
+    int blossomHeight = Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT;
+    if (nPowTargetSpacing == 0) {
+        nPowTargetSpacing = Params().GetConsensus().PoWTargetSpacing(bestHeaderHeight);
+        blossomHeight = Params().GetConsensus().vUpgrades[Consensus::UPGRADE_BLOSSOM].nActivationHeight;
+    }
+
     int BLOCKS_EXPECTED = SPAN_SECONDS / nPowTargetSpacing;
+
+    // If the span period includes Blossom activation, adjust the number of expected blocks.
+    if (blossomHeight != Consensus::NetworkUpgrade::NO_ACTIVATION_HEIGHT &&
+        bestHeaderHeight > blossomHeight)
+    {
+        int t = SPAN_SECONDS;
+        int nBlossomBlocks = bestHeaderHeight - blossomHeight;
+        t -= nBlossomBlocks * Consensus::POST_BLOSSOM_POW_TARGET_SPACING;
+        if (t > 0) {
+            int nPreBlossomBlocks = t / Consensus::PRE_BLOSSOM_POW_TARGET_SPACING;
+            BLOCKS_EXPECTED = nPreBlossomBlocks + nBlossomBlocks;
+        }
+    }
 
     boost::math::poisson_distribution<double> poisson(BLOCKS_EXPECTED);
 
     std::string strWarning;
     int64_t startTime = GetAdjustedTime()-SPAN_SECONDS;
 
-    LOCK(cs);
     const CBlockIndex* i = bestHeader;
     int nBlocks = 0;
     while (i->GetBlockTime() >= startTime) {
@@ -5588,7 +5614,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                     // not a direct successor.
                     pfrom->PushMessage("getheaders", chainActive.GetLocator(pindexBestHeader), inv.hash);
                     CNodeState *nodestate = State(pfrom->GetId());
-                    if (chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - chainparams.GetConsensus().nPowTargetSpacing * 20 &&
+
+                    if (chainActive.Tip()->GetBlockTime() > GetAdjustedTime() - chainparams.GetConsensus().PoWTargetSpacing(pindexBestHeader->nHeight) * 20 &&
                         nodestate->nBlocksInFlight < MAX_BLOCKS_IN_TRANSIT_PER_PEER) {
                         vToFetch.push_back(inv);
                         // Mark block as in flight already, even though the actual "getdata" message only goes out
@@ -5659,7 +5686,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             }
             // If pruning, don't inv blocks unless we have on disk and are likely to still have
             // for some reasonable time window (1 hour) that block relay might require.
-            const int nPrunedBlocksLikelyToHave = MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().nPowTargetSpacing;
+            const int nPrunedBlocksLikelyToHave = MIN_BLOCKS_TO_KEEP - 3600 / chainparams.GetConsensus().PoWTargetSpacing(pindex->nHeight);
             if (fPruneMode && (!(pindex->nStatus & BLOCK_HAVE_DATA) || pindex->nHeight <= chainActive.Tip()->nHeight - nPrunedBlocksLikelyToHave))
             {
                 LogPrint("net", " getblocks stopping, pruned or too old block at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString());
@@ -6523,7 +6550,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
         // more quickly than once every 5 minutes, then we'll shorten the download window for this block).
         if (!pto->fDisconnect && state.vBlocksInFlight.size() > 0) {
             QueuedBlock &queuedBlock = state.vBlocksInFlight.front();
-            int64_t nTimeoutIfRequestedNow = GetBlockTimeout(nNow, nQueuedValidatedHeaders - state.nBlocksInFlightValidHeaders, consensusParams);
+            int64_t nTimeoutIfRequestedNow = GetBlockTimeout(nNow, nQueuedValidatedHeaders - state.nBlocksInFlightValidHeaders, consensusParams, pindexBestHeader->nHeight);
             if (queuedBlock.nTimeDisconnect > nTimeoutIfRequestedNow) {
                 LogPrint("net", "Reducing block download timeout for peer=%d block=%s, orig=%d new=%d\n", pto->id, queuedBlock.hash.ToString(), queuedBlock.nTimeDisconnect, nTimeoutIfRequestedNow);
                 queuedBlock.nTimeDisconnect = nTimeoutIfRequestedNow;
