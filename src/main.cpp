@@ -45,7 +45,7 @@
 using namespace std;
 
 #if defined(NDEBUG)
-# error "Zcash cannot be compiled without assertions."
+# error "Arrow cannot be compiled without assertions."
 #endif
 
 #include "librustzcash.h"
@@ -109,7 +109,7 @@ static void CheckBlockIndex();
 /** Constant stuff for coinbase transactions we create: */
 CScript COINBASE_FLAGS;
 
-const string strMessageMagic = "Zcash Signed Message:\n";
+const string strMessageMagic = "Arrow Signed Message:\n";
 
 // Internal stuff
 namespace {
@@ -881,7 +881,7 @@ unsigned int GetP2SHSigOpCount(const CTransaction& tx, const CCoinsViewCache& in
 
 /**
  * Check a transaction contextually against a set of consensus rules valid at a given block height.
- * 
+ *
  * Notes:
  * 1. AcceptToMemoryPool calls CheckTransaction and this function.
  * 2. ProcessNewBlock calls AcceptBlock, which calls CheckBlock (which calls CheckTransaction)
@@ -959,7 +959,7 @@ bool ContextualCheckTransaction(
             return state.DoS(dosLevel, error("ContextualCheckTransaction: overwinter is active"),
                             REJECT_INVALID, "tx-overwinter-active");
         }
-    
+
         // Check that all transactions are unexpired
         if (IsExpiredTx(tx, nHeight)) {
             // Don't increase banscore if the transaction only just expired
@@ -1735,34 +1735,52 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex)
 
 CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
 {
-    CAmount nSubsidy = 12.5 * COIN;
+    CAmount nSubsidy = 70 * COIN;
 
-    // Mining slow start
-    // The subsidy is ramped up linearly, skipping the middle payout of
-    // MAX_SUBSIDY/2 to keep the monetary curve consistent with no slow start.
-    if (nHeight < consensusParams.nSubsidySlowStartInterval / 2) {
-        nSubsidy /= consensusParams.nSubsidySlowStartInterval;
-        nSubsidy *= nHeight;
-        return nSubsidy;
-    } else if (nHeight < consensusParams.nSubsidySlowStartInterval) {
-        nSubsidy /= consensusParams.nSubsidySlowStartInterval;
-        nSubsidy *= (nHeight+1);
-        return nSubsidy;
+    // Mining reward is reduced by 5 every quarter for the first 2 years.
+    // 1920 blocks/day
+    // 91 days/quarter
+    // 174720 blocks/quarter
+
+    if (nHeight > 174720) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 2) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 3) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 4) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 5) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 6) {
+      nSubsidy -= 5;
+    }
+    if (nHeight > 174720 * 7) {
+      nSubsidy -= 5;
     }
 
-    assert(nHeight > consensusParams.SubsidySlowStartShift());
-    int halvings = (nHeight - consensusParams.SubsidySlowStartShift()) / consensusParams.nSubsidyHalvingInterval;
-    // Force block reward to zero when right shift is undefined.
+    // Subsidy is cut in half every 2,803,200 blocks which will occur
+    // approximately every 4 years.
+
+    int halvings = nHeight / consensusParams.nSubsidyHalvingInterval;
+    for (int i = 0; i < halvings; i++) {
+      nSubsidy /= 2;
+    }
+
     if (halvings >= 64)
         return 0;
 
-    // Subsidy is cut in half every 840,000 blocks which will occur approximately every 4 years.
-    nSubsidy >>= halvings;
     return nSubsidy;
 }
 
 bool IsInitialBlockDownload()
 {
+    // return false;
     const CChainParams& chainParams = Params();
 
     // Once this function has returned false, it must remain false.
@@ -3860,26 +3878,26 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     // In Zcash this has been enforced since launch, except that the genesis
     // block didn't include the height in the coinbase (see Zcash protocol spec
     // section '6.8 Bitcoin Improvement Proposals').
-    if (nHeight > 0)
-    {
-        CScript expect = CScript() << nHeight;
-        if (block.vtx[0].vin[0].scriptSig.size() < expect.size() ||
-            !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
-            return state.DoS(100, error("%s: block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
-        }
-    }
+    // if (nHeight > 0)
+    // {
+    //     CScript expect = CScript() << nHeight;
+    //     if (block.vtx[0].vin[0].scriptSig.size() < expect.size() ||
+    //         !std::equal(expect.begin(), expect.end(), block.vtx[0].vin[0].scriptSig.begin())) {
+    //         return state.DoS(100, error("%s: block height mismatch in coinbase", __func__), REJECT_INVALID, "bad-cb-height");
+    //     }
+    // }
 
-    // Coinbase transaction must include an output sending 20% of
+    // Coinbase transaction must include an output sending 4.8% of
     // the block reward to a founders reward script, until the last founders
     // reward block is reached, with exception of the genesis block.
     // The last founders reward block is defined as the block just before the
-    // first subsidy halving block, which occurs at halving_interval + slow_start_shift
+    // first subsidy halving block, which occurs at halving_interval * 2
     if ((nHeight > 0) && (nHeight <= consensusParams.GetLastFoundersRewardBlockHeight())) {
         bool found = false;
 
         BOOST_FOREACH(const CTxOut& output, block.vtx[0].vout) {
             if (output.scriptPubKey == Params().GetFoundersRewardScriptAtHeight(nHeight)) {
-                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) / 5)) {
+                if (output.nValue == (GetBlockSubsidy(nHeight, consensusParams) * 0.048)) {
                     found = true;
                     break;
                 }
@@ -3894,7 +3912,7 @@ bool ContextualCheckBlock(const CBlock& block, CValidationState& state, CBlockIn
     return true;
 }
 
-bool AcceptBlockHeader(const CBlockHeader& block, CValidationState& state, CBlockIndex** ppindex)
+bool go(const CBlockHeader& block, CValidationState& state, CBlockIndex** ppindex)
 {
     const CChainParams& chainparams = Params();
     AssertLockHeld(cs_main);

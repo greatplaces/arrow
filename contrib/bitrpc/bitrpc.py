@@ -11,9 +11,9 @@ rpcpass = ""
 
 
 if rpcpass == "":
-    access = ServiceProxy("http://127.0.0.1:8232")
+    access = ServiceProxy("http://127.0.0.1:6543")
 else:
-    access = ServiceProxy("http://"+rpcuser+":"+rpcpass+"@127.0.0.1:8232")
+    access = ServiceProxy("http://"+rpcuser+":"+rpcpass+"@127.0.0.1:6543")
 cmd = sys.argv[1].lower()
 
 if cmd == "backupwallet":
@@ -219,60 +219,60 @@ elif cmd == "listtransactions":
     except Exception as inst:
         print inst
 
-elif cmd == "move":
-    try:
-        frm = raw_input("From: ")
-        to = raw_input("To: ")
-        amt = raw_input("Amount:")
-        mc = raw_input("Minimum confirmations (optional): ")
-        comment = raw_input("Comment (optional): ")
-        try:
-            print access.move(frm, to, amt, mc, comment)
-        except:
-            print access.move(frm, to, amt)
-    except Exception as inst:
-        print inst
+# elif cmd == "move":
+#     try:
+#         frm = raw_input("From: ")
+#         to = raw_input("To: ")
+#         amt = raw_input("Amount:")
+#         mc = raw_input("Minimum confirmations (optional): ")
+#         comment = raw_input("Comment (optional): ")
+#         try:
+#             print access.move(frm, to, amt, mc, comment)
+#         except:
+#             print access.move(frm, to, amt)
+#     except Exception as inst:
+#         print inst
 
-elif cmd == "sendfrom":
-    try:
-        frm = raw_input("From: ")
-        to = raw_input("To: ")
-        amt = raw_input("Amount:")
-        mc = raw_input("Minimum confirmations (optional): ")
-        comment = raw_input("Comment (optional): ")
-        commentto = raw_input("Comment-to (optional): ")
-        try:
-            print access.sendfrom(frm, to, amt, mc, comment, commentto)
-        except:
-            print access.sendfrom(frm, to, amt)
-    except Exception as inst:
-        print inst
+# elif cmd == "sendfrom":
+#     try:
+#         frm = raw_input("From: ")
+#         to = raw_input("To: ")
+#         amt = raw_input("Amount:")
+#         mc = raw_input("Minimum confirmations (optional): ")
+#         comment = raw_input("Comment (optional): ")
+#         commentto = raw_input("Comment-to (optional): ")
+#         try:
+#             print access.sendfrom(frm, to, amt, mc, comment, commentto)
+#         except:
+#             print access.sendfrom(frm, to, amt)
+#     except Exception as inst:
+#         print inst
 
-elif cmd == "sendmany":
-    try:
-        frm = raw_input("From: ")
-        to = raw_input("To (in format address1:amount1,address2:amount2,...): ")
-        mc = raw_input("Minimum confirmations (optional): ")
-        comment = raw_input("Comment (optional): ")
-        try:
-            print access.sendmany(frm,to,mc,comment)
-        except:
-            print access.sendmany(frm,to)
-    except Exception as inst:
-        print inst
-
-elif cmd == "sendtoaddress":
-    try:
-        to = raw_input("To (in format address1:amount1,address2:amount2,...): ")
-        amt = raw_input("Amount:")
-        comment = raw_input("Comment (optional): ")
-        commentto = raw_input("Comment-to (optional): ")
-        try:
-            print access.sendtoaddress(to,amt,comment,commentto)
-        except:
-            print access.sendtoaddress(to,amt)
-    except Exception as inst:
-        print inst
+# elif cmd == "sendmany":
+#     try:
+#         frm = raw_input("From: ")
+#         to = raw_input("To (in format address1:amount1,address2:amount2,...): ")
+#         mc = raw_input("Minimum confirmations (optional): ")
+#         comment = raw_input("Comment (optional): ")
+#         try:
+#             print access.sendmany(frm,to,mc,comment)
+#         except:
+#             print access.sendmany(frm,to)
+#     except Exception as inst:
+#         print inst
+#
+# elif cmd == "sendtoaddress":
+#     try:
+#         to = raw_input("To (in format address1:amount1,address2:amount2,...): ")
+#         amt = raw_input("Amount:")
+#         comment = raw_input("Comment (optional): ")
+#         commentto = raw_input("Comment-to (optional): ")
+#         try:
+#             print access.sendtoaddress(to,amt,comment,commentto)
+#         except:
+#             print access.sendtoaddress(to,amt)
+#     except Exception as inst:
+#         print inst
 
 elif cmd == "setaccount":
     try:

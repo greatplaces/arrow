@@ -407,14 +407,15 @@ CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn)
         txNew.nExpiryHeight = 0;
 
         if ((nHeight > 0) && (nHeight <= chainparams.GetConsensus().GetLastFoundersRewardBlockHeight())) {
-            // Founders reward is 20% of the block subsidy
-            auto vFoundersReward = txNew.vout[0].nValue / 5;
+            // Founders reward is 4.8% of the block subsidy
+            auto vFoundersReward = txNew.vout[0].nValue * 0.048;
             // Take some reward away from us
             txNew.vout[0].nValue -= vFoundersReward;
 
             // And give it to the founders
             txNew.vout.push_back(CTxOut(vFoundersReward, chainparams.GetFoundersRewardScriptAtHeight(nHeight)));
         }
+        LogPrintf("CreateNewBlock(): founder stuff worked\n");
 
         // Add fees
         txNew.vout[0].nValue += nFees;
@@ -505,7 +506,7 @@ static bool ProcessBlockFound(CBlock* pblock, const CChainParams& chainparams)
     {
         LOCK(cs_main);
         if (pblock->hashPrevBlock != chainActive.Tip()->GetBlockHash())
-            return error("ZcashMiner: generated block is stale");
+            return error("ArrowMiner: generated block is stale");
     }
 
     // Inform about the new block
@@ -514,7 +515,7 @@ static bool ProcessBlockFound(CBlock* pblock, const CChainParams& chainparams)
     // Process this block the same as if we had received it from another node
     CValidationState state;
     if (!ProcessNewBlock(state, NULL, pblock, true, NULL))
-        return error("ZcashMiner: ProcessNewBlock, block not accepted");
+        return error("ArrowMiner: ProcessNewBlock, block not accepted");
 
     TrackMinedBlock(pblock->GetHash());
 
@@ -523,7 +524,7 @@ static bool ProcessBlockFound(CBlock* pblock, const CChainParams& chainparams)
 
 void static BitcoinMiner(const CChainParams& chainparams)
 {
-    LogPrintf("ZcashMiner started\n");
+    LogPrintf("ArrowMiner started\n");
     SetThreadPriority(THREAD_PRIORITY_LOWEST);
     RenameThread("zcash-miner");
 
@@ -583,17 +584,17 @@ void static BitcoinMiner(const CChainParams& chainparams)
             if (!pblocktemplate.get())
             {
                 if (GetArg("-mineraddress", "").empty()) {
-                    LogPrintf("Error in ZcashMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
+                    LogPrintf("Error in ArrowMiner: Keypool ran out, please call keypoolrefill before restarting the mining thread\n");
                 } else {
                     // Should never reach here, because -mineraddress validity is checked in init.cpp
-                    LogPrintf("Error in ZcashMiner: Invalid -mineraddress\n");
+                    LogPrintf("Error in ArrowMiner: Invalid -mineraddress\n");
                 }
                 return;
             }
             CBlock *pblock = &pblocktemplate->block;
             IncrementExtraNonce(pblock, pindexPrev, nExtraNonce);
 
-            LogPrintf("Running ZcashMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
+            LogPrintf("Running ArrowMiner with %u transactions in block (%u bytes)\n", pblock->vtx.size(),
                 ::GetSerializeSize(*pblock, SER_NETWORK, PROTOCOL_VERSION));
 
             //
@@ -640,7 +641,7 @@ void static BitcoinMiner(const CChainParams& chainparams)
 
                     // Found a solution
                     SetThreadPriority(THREAD_PRIORITY_NORMAL);
-                    LogPrintf("ZcashMiner:\n");
+                    LogPrintf("ArrowMiner:\n");
                     LogPrintf("proof-of-work found  \n  hash: %s  \ntarget: %s\n", pblock->GetHash().GetHex(), hashTarget.GetHex());
                     if (ProcessBlockFound(pblock, chainparams)) {
                         // Ignore chain updates caused by us
@@ -739,14 +740,14 @@ void static BitcoinMiner(const CChainParams& chainparams)
     {
         miningTimer.stop();
         c.disconnect();
-        LogPrintf("ZcashMiner terminated\n");
+        LogPrintf("ArrowMiner terminated\n");
         throw;
     }
     catch (const std::runtime_error &e)
     {
         miningTimer.stop();
         c.disconnect();
-        LogPrintf("ZcashMiner runtime error: %s\n", e.what());
+        LogPrintf("ArrowMiner runtime error: %s\n", e.what());
         return;
     }
     miningTimer.stop();

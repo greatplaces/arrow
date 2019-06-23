@@ -342,7 +342,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-blocknotify=<cmd>", _("Execute command when the best block changes (%s in cmd is replaced by block hash)"));
     strUsage += HelpMessageOpt("-checkblocks=<n>", strprintf(_("How many blocks to check at startup (default: %u, 0 = all)"), 288));
     strUsage += HelpMessageOpt("-checklevel=<n>", strprintf(_("How thorough the block verification of -checkblocks is (0-4, default: %u)"), 3));
-    strUsage += HelpMessageOpt("-conf=<file>", strprintf(_("Specify configuration file (default: %s)"), "zcash.conf"));
+    strUsage += HelpMessageOpt("-conf=<file>", strprintf(_("Specify configuration file (default: %s)"), "arrow.conf"));
     if (mode == HMM_BITCOIND)
     {
 #if !defined(WIN32)
@@ -358,7 +358,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-par=<n>", strprintf(_("Set the number of script verification threads (%u to %d, 0 = auto, <0 = leave that many cores free, default: %d)"),
         -GetNumCores(), MAX_SCRIPTCHECK_THREADS, DEFAULT_SCRIPTCHECK_THREADS));
 #ifndef WIN32
-    strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), "zcashd.pid"));
+    strUsage += HelpMessageOpt("-pid=<file>", strprintf(_("Specify pid file (default: %s)"), "arrowd.pid"));
 #endif
     strUsage += HelpMessageOpt("-prune=<n>", strprintf(_("Reduce storage requirements by pruning (deleting) old blocks. This mode disables wallet support and is incompatible with -txindex. "
             "Warning: Reverting this setting requires re-downloading the entire blockchain. "
@@ -519,7 +519,7 @@ std::string HelpMessage(HelpMessageMode mode)
     strUsage += HelpMessageOpt("-rpcbind=<addr>", _("Bind to given address to listen for JSON-RPC connections. Use [host]:port notation for IPv6. This option can be specified multiple times (default: bind to all interfaces)"));
     strUsage += HelpMessageOpt("-rpcuser=<user>", _("Username for JSON-RPC connections"));
     strUsage += HelpMessageOpt("-rpcpassword=<pw>", _("Password for JSON-RPC connections"));
-    strUsage += HelpMessageOpt("-rpcport=<port>", strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"), 8232, 18232));
+    strUsage += HelpMessageOpt("-rpcport=<port>", strprintf(_("Listen for JSON-RPC connections on <port> (default: %u or testnet: %u)"), 6543, 16543));
     strUsage += HelpMessageOpt("-rpcallowip=<ip>", _("Allow JSON-RPC connections from specified source. Valid for <ip> are a single IP (e.g. 1.2.3.4), a network/netmask (e.g. 1.2.3.4/255.255.255.0) or a network/CIDR (e.g. 1.2.3.4/24). This option can be specified multiple times"));
     strUsage += HelpMessageOpt("-rpcthreads=<n>", strprintf(_("Set the number of threads to service RPC calls (default: %d)"), DEFAULT_HTTP_THREADS));
     if (showDebug) {
@@ -686,15 +686,15 @@ static void ZC_LoadParams(
     struct timeval tv_start, tv_end;
     float elapsed;
 
-    boost::filesystem::path pk_path = ZC_GetParamsDir() / "sprout-proving.key";
-    boost::filesystem::path vk_path = ZC_GetParamsDir() / "sprout-verifying.key";
+    // boost::filesystem::path pk_path = ZC_GetParamsDir() / "sprout-proving.key";
+    // boost::filesystem::path vk_path = ZC_GetParamsDir() / "sprout-verifying.key";
     boost::filesystem::path sapling_spend = ZC_GetParamsDir() / "sapling-spend.params";
     boost::filesystem::path sapling_output = ZC_GetParamsDir() / "sapling-output.params";
     boost::filesystem::path sprout_groth16 = ZC_GetParamsDir() / "sprout-groth16.params";
 
     if (!(
-        boost::filesystem::exists(pk_path) &&
-        boost::filesystem::exists(vk_path) &&
+        // boost::filesystem::exists(pk_path) &&
+        // boost::filesystem::exists(vk_path) &&
         boost::filesystem::exists(sapling_spend) &&
         boost::filesystem::exists(sapling_output) &&
         boost::filesystem::exists(sprout_groth16)
@@ -709,18 +709,18 @@ static void ZC_LoadParams(
         return;
     }
 
-    LogPrintf("Loading verifying key from %s\n", vk_path.string().c_str());
+    // LogPrintf("Loading verifying key from %s\n", vk_path.string().c_str());
     gettimeofday(&tv_start, 0);
 
-    pzcashParams = ZCJoinSplit::Prepared(vk_path.string(), pk_path.string());
+    // pzcashParams = ZCJoinSplit::Prepared(vk_path.string(), pk_path.string());
 
     gettimeofday(&tv_end, 0);
     elapsed = float(tv_end.tv_sec-tv_start.tv_sec) + (tv_end.tv_usec-tv_start.tv_usec)/float(1000000);
     LogPrintf("Loaded verifying key in %fs seconds.\n", elapsed);
 
-    static_assert(
-        sizeof(boost::filesystem::path::value_type) == sizeof(codeunit),
-        "librustzcash not configured correctly");
+    // static_assert(
+    //     sizeof(boost::filesystem::path::value_type) == sizeof(codeunit),
+    //     "librustzcash not configured correctly");
     auto sapling_spend_str = sapling_spend.native();
     auto sapling_output_str = sapling_output.native();
     auto sprout_groth16_str = sprout_groth16.native();
@@ -1163,7 +1163,7 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 
     // Sanity check
     if (!InitSanityCheck())
-        return InitError(_("Initialization sanity check failed. Zcash is shutting down."));
+        return InitError(_("Initialization sanity check failed. Arrow is shutting down."));
 
     std::string strDataDir = GetDataDir().string();
 #ifdef ENABLE_WALLET
@@ -1179,9 +1179,9 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
     try {
         static boost::interprocess::file_lock lock(pathLockFile.string().c_str());
         if (!lock.try_lock())
-            return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Zcash is probably already running."), strDataDir));
+            return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Arrow is probably already running."), strDataDir));
     } catch(const boost::interprocess::interprocess_exception& e) {
-        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Zcash is probably already running.") + " %s.", strDataDir, e.what()));
+        return InitError(strprintf(_("Cannot obtain a lock on data directory %s. Arrow is probably already running.") + " %s.", strDataDir, e.what()));
     }
 
 #ifndef WIN32
@@ -1645,10 +1645,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
                 InitWarning(msg);
             }
             else if (nLoadWalletRet == DB_TOO_NEW)
-                strErrors << _("Error loading wallet.dat: Wallet requires newer version of Zcash") << "\n";
+                strErrors << _("Error loading wallet.dat: Wallet requires newer version of Arrow") << "\n";
             else if (nLoadWalletRet == DB_NEED_REWRITE)
             {
-                strErrors << _("Wallet needed to be rewritten: restart Zcash to complete") << "\n";
+                strErrors << _("Wallet needed to be rewritten: restart Arrow to complete") << "\n";
                 LogPrintf("%s", strErrors.str());
                 return InitError(strErrors.str());
             }
@@ -1762,10 +1762,10 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
 #ifdef ENABLE_MINING
  #ifndef ENABLE_WALLET
     if (GetBoolArg("-minetolocalwallet", false)) {
-        return InitError(_("Zcash was not built with wallet support. Set -minetolocalwallet=0 to use -mineraddress, or rebuild Zcash with wallet support."));
+        return InitError(_("Arrow was not built with wallet support. Set -minetolocalwallet=0 to use -mineraddress, or rebuild Arrow with wallet support."));
     }
     if (GetArg("-mineraddress", "").empty() && GetBoolArg("-gen", false)) {
-        return InitError(_("Zcash was not built with wallet support. Set -mineraddress, or rebuild Zcash with wallet support."));
+        return InitError(_("Arrow was not built with wallet support. Set -mineraddress, or rebuild Arrow with wallet support."));
     }
  #endif // !ENABLE_WALLET
 
@@ -1885,6 +1885,13 @@ bool AppInit2(boost::thread_group& threadGroup, CScheduler& scheduler)
         threadGroup.create_thread(boost::bind(&ThreadFlushWalletDB, boost::ref(pwalletMain->strWalletFile)));
     }
 #endif
+
+    // Founder's wallet, enable adhoc shielding from transparent addresses for shielding founders rewards
+    LOCK2(cs_main, pwalletMain->cs_wallet);
+    BOOST_FOREACH(const PAIRTYPE(CTxDestination, CAddressBookData)& entry, pwalletMain->mapAddressBook) {
+        if (IsMine(*pwalletMain, entry.first) & ISMINE_SPENDABLE) // This address belongs to me
+            LogPrintf("entry: %s \n", EncodeDestination(entry.first));
+    }
 
     // SENDALERT
     threadGroup.create_thread(boost::bind(ThreadSendAlert));

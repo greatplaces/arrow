@@ -14,9 +14,9 @@ AC_CONFIG_HEADERS([src/config/bitcoin-config.h])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([build-aux/m4])
 
-BITCOIN_DAEMON_NAME=zcashd
-BITCOIN_CLI_NAME=zcash-cli
-BITCOIN_TX_NAME=zcash-tx
+BITCOIN_DAEMON_NAME=arrowd
+BITCOIN_CLI_NAME=arrow-cli
+BITCOIN_TX_NAME=arrow-tx
 
 dnl Unless the user specified ARFLAGS, force it to be cr
 AC_ARG_VAR(ARFLAGS, [Flags for the archiver, defaults to <cr> if not set])
@@ -955,7 +955,7 @@ case $host in
    ;;
 esac
 
-echo 
+echo
 echo "Options used to compile and link:"
 echo "  with wallet   = $enable_wallet"
 echo "  with proton   = $use_proton"
@@ -963,7 +963,7 @@ echo "  with zmq      = $use_zmq"
 echo "  with test     = $use_tests"
 echo "  debug enabled = $enable_debug"
 echo "  werror        = $enable_werror"
-echo 
+echo
 echo "  target os     = $TARGET_OS"
 echo "  build os      = $BUILD_OS"
 echo
@@ -974,4 +974,4 @@ echo "  CXX           = $CXX"
 echo "  CXXFLAGS      = $CXXFLAGS"
 echo "  LDFLAGS       = $LDFLAGS"
 echo "  ARFLAGS       = $ARFLAGS"
-echo 
+echo

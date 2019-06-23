@@ -438,7 +438,7 @@ static std::string FormatException(const std::exception* pex, const char* pszThr
     char pszModule[MAX_PATH] = "";
     GetModuleFileNameA(NULL, pszModule, sizeof(pszModule));
 #else
-    const char* pszModule = "Zcash";
+    const char* pszModule = "Arrow";
 #endif
     if (pex)
         return strprintf(
@@ -465,7 +465,7 @@ boost::filesystem::path GetDefaultDataDir()
     // Unix: ~/.zcash
 #ifdef WIN32
     // Windows
-    return GetSpecialFolderPath(CSIDL_APPDATA) / "Zcash";
+    return GetSpecialFolderPath(CSIDL_APPDATA) / "Arrow";
 #else
     fs::path pathRet;
     char* pszHome = getenv("HOME");
@@ -477,10 +477,10 @@ boost::filesystem::path GetDefaultDataDir()
     // Mac
     pathRet /= "Library/Application Support";
     TryCreateDirectory(pathRet);
-    return pathRet / "Zcash";
+    return pathRet / "Arrow";
 #else
     // Unix
-    return pathRet / ".zcash";
+    return pathRet / ".arrow";
 #endif
 #endif
 }
@@ -597,7 +597,7 @@ void ClearDatadirCache()
 
 boost::filesystem::path GetConfigFile()
 {
-    boost::filesystem::path pathConfigFile(GetArg("-conf", "zcash.conf"));
+    boost::filesystem::path pathConfigFile(GetArg("-conf", "arrow.conf"));
     if (!pathConfigFile.is_complete())
         pathConfigFile = GetDataDir(false) / pathConfigFile;
 
@@ -633,7 +633,7 @@ void ReadConfigFile(map<string, string>& mapSettingsRet,
 #ifndef WIN32
 boost::filesystem::path GetPidFile()
 {
-    boost::filesystem::path pathPidFile(GetArg("-pid", "zcashd.pid"));
+    boost::filesystem::path pathPidFile(GetArg("-pid", "arrowd.pid"));
     if (!pathPidFile.is_complete()) pathPidFile = GetDataDir() / pathPidFile;
     return pathPidFile;
 }
@@ -906,7 +906,7 @@ void SetThreadPriority(int nPriority)
 std::string PrivacyInfo()
 {
     return "\n" +
-           FormatParagraph(strprintf(_("In order to ensure you are adequately protecting your privacy when using Zcash, please see <%s>."),
+           FormatParagraph(strprintf(_("In order to ensure you are adequately protecting your privacy when using Arrow, please see <%s>."),
                                      "https://z.cash/support/security/")) + "\n";
 }
 
@@ -928,4 +928,3 @@ int GetNumCores()
 {
     return boost::thread::physical_concurrency();
 }
-
