@@ -43,7 +43,9 @@ UpgradeState NetworkUpgradeState(
     const Consensus::Params& params,
     Consensus::UpgradeIndex idx)
 {
-    assert(nHeight >= 0);
+    
+		/*
+		assert(nHeight >= 0);
     assert(idx >= Consensus::BASE_SPROUT && idx < Consensus::MAX_NETWORK_UPGRADES);
     auto nActivationHeight = params.vUpgrades[idx].nActivationHeight;
 
@@ -63,6 +65,8 @@ UpgradeState NetworkUpgradeState(
     } else {
         return UPGRADE_PENDING;
     }
+		*/
+		return UPGRADE_DISABLED; //Always return disabled upgrades
 }
 
 int CurrentEpoch(int nHeight, const Consensus::Params& params) {
