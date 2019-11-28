@@ -125,6 +125,7 @@ struct Params {
     int64_t nPowMaxAdjustUp;
     int64_t nPreBlossomPowTargetSpacing;
     int64_t nPostBlossomPowTargetSpacing;
+    std::vector<int64_t> rewardSteps;
 
     int64_t PoWTargetSpacing(int nHeight) const;
     int64_t AveragingWindowTimespan(int nHeight) const;

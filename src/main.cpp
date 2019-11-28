@@ -1803,26 +1803,11 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
   // 91 days/quarter
   // 174720 blocks/quarter
 
-  // if (nHeight > 174720) {
-  //   nSubsidy -= 5 * COIN;
-  // }
-  if (nHeight > 174720 * 2) {
-    nSubsidy -= 5 * COIN;
-  }
-  if (nHeight > 174720 * 3) {
-    nSubsidy -= 5 * COIN;
-  }
-  if (nHeight > 174720 * 4) {
-    nSubsidy -= 5 * COIN;
-  }
-  if (nHeight > 174720 * 5) {
-    nSubsidy -= 5 * COIN;
-  }
-  if (nHeight > 174720 * 6) {
-    nSubsidy -= 5 * COIN;
-  }
-  if (nHeight > 174720 * 7) {
-    nSubsidy -= 5 * COIN;
+  int steps = consensusParams.rewardSteps.size();
+  for (int i = 0; i < steps; ++i) {
+    if (nHeight > consensusParams.rewardSteps[i]) {
+      nSubsidy -= 5 * COIN;
+    }
   }
 
   // Subsidy is cut in half every 2,803,200 blocks which will occur

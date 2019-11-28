@@ -102,6 +102,13 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPreBlossomPowTargetSpacing = 45;
         consensus.nPostBlossomPowTargetSpacing = 45;
+        consensus.rewardSteps[0] = 300000;
+        consensus.rewardSteps[1] = 174720 * 2;
+        consensus.rewardSteps[2] = 174720 * 3;
+        consensus.rewardSteps[2] = 174720 * 4;
+        consensus.rewardSteps[2] = 174720 * 5;
+        consensus.rewardSteps[2] = 174720 * 6;
+        consensus.rewardSteps[2] = 174720 * 7;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = boost::none;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
@@ -237,6 +244,8 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPreBlossomPowTargetSpacing = 45;
         consensus.nPostBlossomPowTargetSpacing = 45;
+        consensus.rewardSteps[0] = 123;
+        consensus.rewardSteps[1] = 246;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = 299187;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
@@ -361,6 +370,8 @@ public:
         consensus.nPowMaxAdjustUp = 0; // Turn off adjustment up
         consensus.nPreBlossomPowTargetSpacing = 45;
         consensus.nPostBlossomPowTargetSpacing = 45;
+        consensus.rewardSteps[0] = 123;
+        consensus.rewardSteps[1] = 246;
         consensus.nPowAllowMinDifficultyBlocksAfterHeight = 0;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nProtocolVersion = 170002;
         consensus.vUpgrades[Consensus::BASE_SPROUT].nActivationHeight =
