@@ -3150,6 +3150,7 @@ UniValue zc_raw_keygen(const UniValue& params, bool fHelp)
 
 UniValue z_getnewaddress(const UniValue& params, bool fHelp)
 {
+    LogPrintf("z_getnewaddress()\n");
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
@@ -3183,10 +3184,18 @@ UniValue z_getnewaddress(const UniValue& params, bool fHelp)
     if (addrType == ADDR_TYPE_SPROUT) {
         return EncodePaymentAddress(pwalletMain->GenerateNewSproutZKey());
     } else if (addrType == ADDR_TYPE_SAPLING) {
-        return EncodePaymentAddress(pwalletMain->GenerateNewSaplingZKey());
+        LogPrintf("z_getnewaddress() generating new sapling key.\n");
+        auto ret = EncodePaymentAddress(pwalletMain->GenerateNewSaplingZKey());
+        // JN addtion
+        //LogPrintf("z_getnewaddress rescanning post add\n");
+        //pwalletMain->ScanForWalletTransactions(chainActive[0], true);
+
+        return ret;
     } else {
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid address type");
     }
+
+
 }
 
 

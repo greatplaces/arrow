@@ -109,6 +109,7 @@ libzcash::SproutPaymentAddress CWallet::GenerateNewSproutZKey()
 // Generate a new Sapling spending key and return its public payment address
 SaplingPaymentAddress CWallet::GenerateNewSaplingZKey()
 {
+    LogPrintf("GenerateNewSaplingZKey()\n");
     AssertLockHeld(cs_wallet); // mapSaplingZKeyMetadata
 
     // Create new metadata
@@ -148,6 +149,11 @@ SaplingPaymentAddress CWallet::GenerateNewSaplingZKey()
     mapSaplingZKeyMetadata[ivk] = metadata;
 
     auto addr = xsk.DefaultAddress();
+
+
+    std::string hex = addr.GetHash().GetHex();
+    LogPrintf("GenerateNewSaplingZKey generated/adding addr: %s\n", hex);
+
     if (!AddSaplingZKey(xsk, addr)) {
         throw std::runtime_error("CWallet::GenerateNewSaplingZKey(): AddSaplingZKey failed");
     }
@@ -2484,6 +2490,7 @@ void CWallet::WitnessNoteCommitment(std::vector<uint256> commitments,
  */
 int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 {
+    LogPrintf("CWallet::ScanForWalletTransactions()");
     int ret = 0;
     int64_t nNow = GetTime();
     const CChainParams& chainParams = Params();
@@ -2523,8 +2530,11 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             // This should never fail: we should always be able to get the tree
             // state on the path to the tip of our chain
             assert(pcoinsTip->GetSproutAnchorAt(pindex->hashSproutAnchor, sproutTree));
-            if (pindex->pprev && pindex->nHeight > 1) {
+            if (pindex->pprev) {
                 if (Params().GetConsensus().NetworkUpgradeActive(pindex->pprev->nHeight,  Consensus::UPGRADE_SAPLING)) {
+                    std::string root_str = pindex->pprev->hashFinalSaplingRoot.GetHex();
+                    LogPrintf("CWallet::ScanForWalletTransactions checking sapling presence for: pi %x pp %x root_str: %s", pindex, pindex->pprev, root_str);
+
                     assert(pcoinsTip->GetSaplingAnchorAt(pindex->pprev->hashFinalSaplingRoot, saplingTree));
                 }
             }
@@ -4696,9 +4706,7 @@ boost::optional<libzcash::SpendingKey> GetSpendingKeyForPaymentAddress::operator
 
 SpendingKeyAddResult AddSpendingKeyToWallet::operator()(const libzcash::SproutSpendingKey &sk) const {
     auto addr = sk.address();
-    if (log){
-        LogPrint("zrpc", "Importing zaddr %s...\n", EncodePaymentAddress(addr));
-    }
+    LogPrintf("AddSpendingKeyToWallet(): SRPOUT Importing zaddr %s...\n", EncodePaymentAddress(addr));
     if (m_wallet->HaveSproutSpendingKey(addr)) {
         return KeyAlreadyExists;
     } else if (m_wallet-> AddSproutZKey(sk)) {
@@ -4714,16 +4722,17 @@ SpendingKeyAddResult AddSpendingKeyToWallet::operator()(const libzcash::SaplingE
     auto ivk = fvk.in_viewing_key();
     auto addr = sk.DefaultAddress();
     {
-        if (log){
-            LogPrint("zrpc", "Importing zaddr %s...\n", EncodePaymentAddress(addr));
-        }
+        LogPrintf("AddSpendingKeyToWallet(): SAPLING Importing zaddr %s...\n", EncodePaymentAddress(addr));
         // Don't throw error in case a key is already there
         if (m_wallet->HaveSaplingSpendingKey(fvk)) {
+            LogPrintf("AddSpendingKeyToWallet() key already exists..\n");
             return KeyAlreadyExists;
         } else {
             if (!m_wallet-> AddSaplingZKey(sk, addr)) {
+                LogPrintf("AddSpendingKeyToWallet() AddSaplingZKey failed, didnt add..\n");
                 return KeyNotAdded;
             }
+            LogPrintf("AddSpendingKeyToWallet() finishing add of key, all went well\n");
 
             // Sapling addresses can't have been used in transactions prior to activation.
             if (params.vUpgrades[Consensus::UPGRADE_SAPLING].nActivationHeight == Consensus::NetworkUpgrade::ALWAYS_ACTIVE) {

@@ -956,7 +956,7 @@ bool ContextualCheckTransaction(
     // Rules that apply to Overwinter or later:
     if (overwinterActive) {
         // Reject transactions intended for Sprout
-        if (!tx.fOverwintered && nHeight > 0) {
+        if (!tx.fOverwintered) {
             return state.DoS(dosLevel, error("ContextualCheckTransaction: overwinter is active"),
                             REJECT_INVALID, "tx-overwinter-active");
         }
@@ -2644,6 +2644,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
         // conditionally.
         if (pindex->nChainSaplingValue) {
             if (*pindex->nChainSaplingValue < 0) {
+                long int ncsv = *pindex->nChainSaplingValue;
+                LogPrintf("negative sapling value detected, rejecting block: %d\n", ncsv);
                 return state.DoS(100, error("ConnectBlock(): turnstile violation in Sapling shielded value pool"),
                              REJECT_INVALID, "turnstile-violation-sapling-shielded-pool");
             }
@@ -3185,6 +3187,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
     LogPrint("bench", "  - Load block from disk: %.2fms [%.2fs]\n", (nTime2 - nTime1) * 0.001, nTimeReadFromDisk * 0.000001);
     {
         CCoinsViewCache view(pcoinsTip);
+        long int ncsv = *pindexNew->nChainSaplingValue;
+        LogPrintf("ConnectTip calling ConnectBlock with pindexNew->nChainSaplingValue: %d\n", ncsv);
         bool rv = ConnectBlock(*pblock, state, pindexNew, view, chainparams);
         GetMainSignals().BlockChecked(*pblock, state);
         if (!rv) {
@@ -3237,7 +3241,8 @@ bool static ConnectTip(CValidationState& state, const CChainParams& chainparams,
  * Return the tip of the chain with the most work in it, that isn't
  * known to be invalid (it's however far from certain to be valid).
  */
-static CBlockIndex* FindMostWorkChain() {
+static CBlockIndex* ZIP209RemoveBogusBlocks(CBlockIndex*);
+static CBlockIndex* FindMostWorkChain(const CChainParams& chainparams) {
     do {
         CBlockIndex *pindexNew = NULL;
 
@@ -3247,6 +3252,11 @@ static CBlockIndex* FindMostWorkChain() {
             if (it == setBlockIndexCandidates.rend())
                 return NULL;
             pindexNew = *it;
+        }
+
+        // we're going to have to do this somewhere, idk a better place.
+        if (chainparams.ZIP209Enabled()) {
+            pindexNew = ZIP209RemoveBogusBlocks(pindexNew);
         }
 
         // Check whether all blocks on the path between the currently active chain and the candidate are valid.
@@ -3304,6 +3314,67 @@ static void PruneBlockIndexCandidates() {
 }
 
 /**
+ * ZIP209 requires that each block's nChainSaplingValue be >=0
+ * the logic below in the spaghetti nightmare of this codebase
+ * does not deal with that well (endless hangs etc)
+ * so, search for those blocks and DROP them right here.
+ * just edit them right the fuck out of existence.
+ */
+
+#define ABCS_LOOKAHEAD_BLOCKS 32
+static CBlockIndex* ZIP209RemoveBogusBlocks(CBlockIndex* head)
+{
+    if (!head) {
+        LogPrintf("ZIP209RemoveBogusBlocks passed null, doing nothing\n");
+        return head;
+    }
+
+    CBlockIndex* curr = NULL;
+    int badBlocks = 0;
+    int blocksChecked = 0;
+    long int ncsv = *head->nChainSaplingValue;
+    blocksChecked++;
+    // ensure head is a valid block
+    if (ncsv < 0) {
+        // find a new head.
+        badBlocks++;
+        LogPrintf("ZIP209RemoveBogusBlocks head is a bogus block, seeking a valid one\n");
+        CBlockIndex *curr = head->pprev;
+        while (curr) {
+            ncsv = *curr->nChainSaplingValue;
+            blocksChecked++;
+            if (ncsv >= 0) {
+                break;
+            }
+            curr = curr->pprev;
+            badBlocks++;
+        }
+        LogPrintf("ZIP209RemoveBogusBlocks old head: %x new head: %x bad blocks: %d\n", head, curr, badBlocks);        
+        head = curr;
+    }
+
+    // now go through the nearby blocks looking for naughty ones and excise them
+    // note this is in-memory, i have no idea if this ends up affecting
+    // the on-disk state.
+    CBlockIndex* last = head;
+    curr = last->pprev;
+    while (blocksChecked <= ABCS_LOOKAHEAD_BLOCKS + 1 && curr) {
+        ncsv = *curr->nChainSaplingValue;
+        blocksChecked++;
+        if (ncsv < 0) {
+            badBlocks++;
+            LogPrintf("ZIP209RemoveBogusBlocks editing out block %x with bad ncsv: %d l->c->n: %x->%x->%x to %x->%x\n", 
+                curr, ncsv, last, curr, curr->pprev, last, curr->pprev);        
+            last->pprev = curr->pprev;
+        }            
+        curr = curr->pprev;
+    }
+    LogPrintf("ZIP209RemoveBogusBlocks processed: %d and found %d bad blocks\n", 
+        blocksChecked, badBlocks);        
+    return head;
+}
+
+/**
  * Try to make some progress towards making pindexMostWork the active block.
  * pblock is either NULL or a pointer to a CBlock corresponding to pindexMostWork.
  */
@@ -3347,6 +3418,11 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
         fBlocksDisconnected = true;
     }
 
+
+
+
+
+
     // Build list of new blocks to connect.
     std::vector<CBlockIndex*> vpindexToConnect;
     bool fContinue = true;
@@ -3354,7 +3430,7 @@ static bool ActivateBestChainStep(CValidationState& state, const CChainParams& c
     while (fContinue && nHeight != pindexMostWork->nHeight) {
         // Don't iterate the entire list of potential improvements toward the best tip, as we likely only need
         // a few blocks along the way.
-        int nTargetHeight = std::min(nHeight + 32, pindexMostWork->nHeight);
+        int nTargetHeight = std::min(nHeight + ABCS_LOOKAHEAD_BLOCKS, pindexMostWork->nHeight);
         vpindexToConnect.clear();
         vpindexToConnect.reserve(nTargetHeight - nHeight);
         CBlockIndex *pindexIter = pindexMostWork->GetAncestor(nTargetHeight);
@@ -3421,7 +3497,7 @@ bool ActivateBestChain(CValidationState& state, const CChainParams& chainparams,
         bool fInitialDownload;
         {
             LOCK(cs_main);
-            pindexMostWork = FindMostWorkChain();
+            pindexMostWork = FindMostWorkChain(chainparams);
 
             // Whether we have anything to do at all.
             if (pindexMostWork == NULL || pindexMostWork == chainActive.Tip())
@@ -4157,6 +4233,7 @@ bool TestBlockValidity(CValidationState& state, const CChainParams& chainparams,
         return false;
     if (!ContextualCheckBlock(block, state, chainparams, pindexPrev))
         return false;
+    LogPrintf("TestBlockValidity calling ConnectBlock\n");
     if (!ConnectBlock(block, state, &indexDummy, viewNew, chainparams, true))
         return false;
     assert(state.IsValid());
@@ -4593,6 +4670,7 @@ bool CVerifyDB::VerifyDB(const CChainParams& chainparams, CCoinsView *coinsview,
             CBlock block;
             if (!ReadBlockFromDisk(block, pindex, chainparams.GetConsensus()))
                 return error("VerifyDB(): *** ReadBlockFromDisk failed at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
+            LogPrintf("VerifyDB calling ConnectBlock\n");
             if (!ConnectBlock(block, state, pindex, coins, chainparams))
                 return error("VerifyDB(): *** found unconnectable block at %d, hash=%s", pindex->nHeight, pindex->GetBlockHash().ToString());
         }

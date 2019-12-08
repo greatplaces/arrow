@@ -574,6 +574,7 @@ UniValue dumpwallet_impl(const UniValue& params, bool fHelp, bool fDumpZKeys)
 
 UniValue z_importkey(const UniValue& params, bool fHelp)
 {
+    LogPrintf("z_importkey()\n");
     if (!EnsureWalletIsAvailable(fHelp))
         return NullUniValue;
 
@@ -600,8 +601,10 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
         );
 
     LOCK2(cs_main, pwalletMain->cs_wallet);
+    LogPrintf("z_importkey postlock\n");
 
     EnsureWalletIsUnlocked();
+    LogPrintf("z_importkey post-ensure-unlocked\n");
 
     // Whether to perform rescan after import
     bool fRescan = true;
@@ -627,6 +630,9 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
             }
         }
     }
+    LogPrintf("z_importkey fRescan: %d fIgnoreExistingKey: %d\n", fRescan, fIgnoreExistingKey);
+
+
 
     // Height to rescan from
     int nRescanHeight = 0;
@@ -642,8 +648,13 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
         throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid spending key");
     }
 
+    LogPrintf("z_importkey adding key to wallet: %s spendingkey: %s\n", strSecret);
+
     // Sapling support
     auto addResult = boost::apply_visitor(AddSpendingKeyToWallet(pwalletMain, Params().GetConsensus()), spendingkey);
+
+    LogPrintf("z_importkey added key to wallet with result: %d\n", (int)addResult);
+
     if (addResult == KeyAlreadyExists && fIgnoreExistingKey) {
         return NullUniValue;
     }
@@ -657,7 +668,10 @@ UniValue z_importkey(const UniValue& params, bool fHelp)
 
     // We want to scan for transactions and notes
     if (fRescan) {
-        pwalletMain->ScanForWalletTransactions(chainActive[nRescanHeight], true);
+        LogPrintf("z_importkey rescanning post add\n");
+
+        //pwalletMain->ScanForWalletTransactions(chainActive[nRescanHeight], true);
+        pwalletMain->ScanForWalletTransactions(chainActive[0], true);
     }
 
     return NullUniValue;

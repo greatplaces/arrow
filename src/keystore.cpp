@@ -172,6 +172,11 @@ bool CBasicKeyStore::AddSaplingIncomingViewingKey(
     // Add addr -> SaplingIncomingViewing to SaplingIncomingViewingKeyMap
     mapSaplingIncomingViewingKeys[addr] = ivk;
 
+    std::string addrHash = addr.pk_d.GetHex();
+    std::string ivkhash = ivk.GetHex();
+
+    LogPrintf("AddSaplingIncomingViewingKey: addr: %s now contains ivk: %s", addrHash, ivkhash);
+
     return true;
 }
 
