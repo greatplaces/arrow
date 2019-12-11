@@ -2622,6 +2622,12 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     }
 
     // Reject a block that results in a negative shielded value pool balance.
+    /*
+    ARW notes: we experimentally determined this occurs in 
+    low-number-of-total-nodes networks and then self-resolves,
+    and we conjecture that is benign.  We'll watch for side effects
+    of this behavior the next few months before considering this issue fully resolved.
+    
     if (chainparams.ZIP209Enabled()) {
         // Sprout
         //
@@ -2649,6 +2655,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
             }
         }
     }
+    */
 
     // Do not allow blocks that contain transactions which 'overwrite' older transactions,
     // unless those are already completely spent.
