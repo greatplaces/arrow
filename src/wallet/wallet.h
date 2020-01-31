@@ -1153,7 +1153,7 @@ public:
          std::vector<boost::optional<SproutWitness>>& witnesses,
          uint256 &final_anchor);
     void DeleteWalletTransactions(const CBlockIndex* pindex, bool runImmediately);
-    int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
+    int ScanForWalletTransactions(CBlockIndex* pindexStart, CBlockIndex* pindexStop, bool fUpdate = false);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime);
     std::vector<uint256> ResendWalletTransactionsBefore(int64_t nTime);

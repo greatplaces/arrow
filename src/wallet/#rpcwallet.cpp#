@@ -3241,7 +3241,7 @@ UniValue rescanblockchain(const UniValue& params, bool fHelp)
       //    throw JSONRPCError(RPC_MISC_ERROR, "Rescan aborted.");
       // }
         // if we got a nullptr returned, ScanForWalletTransactions did rescan up to the requested stopindex
-      stopBlock = chainActive.Height();
+        stopBlock = pindexStop->nHeight ? pindexStop->nHeightx : chainActive.Tip();
     }
     else {
         throw JSONRPCError(RPC_MISC_ERROR, "Rescan failed. Potentially corrupted data files.");
@@ -4759,7 +4759,7 @@ extern UniValue z_exportviewingkey(const UniValue& params, bool fHelp);
 extern UniValue z_importviewingkey(const UniValue& params, bool fHelp);
 extern UniValue z_exportwallet(const UniValue& params, bool fHelp);
 extern UniValue z_importwallet(const UniValue& params, bool fHelp);
-extern UniValue rescanblockchain(const UniValue& params, bool fHelp);
+extern UniValue rescanblockchain(const JSONRPCRequest& request);
 extern UniValue z_getpaymentdisclosure(const UniValue& params, bool fHelp); // in rpcdisclosure.cpp
 extern UniValue z_validatepaymentdisclosure(const UniValue &params, bool fHelp);
 
@@ -4834,7 +4834,7 @@ static const CRPCCommand commands[] =
     { "wallet",             "z_importwallet",           &z_importwallet,           true  },
     // TODO: rearrange into another category
     { "disclosure",         "z_getpaymentdisclosure",   &z_getpaymentdisclosure,   true  },
-    { "wallet",             "rescanblockchain",         &rescanblockchain,         true  },
+    { "wallet",             "rescanblockchain",         &rescanblockchain,         {"start_height", "stop_height"} },
     { "disclosure",         "z_validatepaymentdisclosure", &z_validatepaymentdisclosure, true }
 };
 

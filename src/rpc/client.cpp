@@ -97,8 +97,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "estimatepriority", 0 },
     { "prioritisetransaction", 1 },
     { "prioritisetransaction", 2 },
-    { "setban", 2 },
-    { "setban", 3 },
     { "getspentinfo", 0},
     { "getaddresstxids", 0},
     { "getaddressbalance", 0},
@@ -142,6 +140,7 @@ static const CRPCConvertParam vRPCConvertParams[] =
     { "z_getpaymentdisclosure", 1},
     { "z_getpaymentdisclosure", 2},
     { "z_setmigration", 0},
+    { "rescanblockchain", 1},
 };
 
 class CRPCConvertTable
