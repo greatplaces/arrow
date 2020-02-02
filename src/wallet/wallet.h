@@ -83,6 +83,9 @@ static const unsigned int DEFAULT_TX_RETENTION_BLOCKS = 10000;
 //Default Retenion Last N-Transactions
 static const unsigned int DEFAULT_TX_RETENTION_LASTTX = 200;
 
+//Amount of transactions to delete per run while syncing
+static const int MAX_DELETE_TX_SIZE = 50000;
+
 class CBlockIndex;
 class CCoinControl;
 class COutput;
@@ -251,15 +254,18 @@ public:
      * -1 as a placeholder. The next time CWallet::ChainTip is called, we can
      * determine what height the witness cache for this note is valid for (even
      * if no witnesses were cached), and so can set the correct value in
-     * CWallet::IncrementNoteWitnesses and CWallet::DecrementNoteWitnesses.
+     * CWallet::BuildWitnessCache and CWallet::DecrementNoteWitnesses.
      */
     int witnessHeight;
 
-    SproutNoteData() : address(), nullifier(), witnessHeight {-1} { }
+    //In Memory Only
+    bool witnessRootValidated;
+
+    SproutNoteData() : address(), nullifier(), witnessHeight {-1}, witnessRootValidated {false} { }
     SproutNoteData(libzcash::SproutPaymentAddress a) :
-            address {a}, nullifier(), witnessHeight {-1} { }
+            address {a}, nullifier(), witnessHeight {-1}, witnessRootValidated {false} { }
     SproutNoteData(libzcash::SproutPaymentAddress a, uint256 n) :
-            address {a}, nullifier {n}, witnessHeight {-1} { }
+            address {a}, nullifier {n}, witnessHeight {-1}, witnessRootValidated {false} { }
 
     ADD_SERIALIZE_METHODS;
 
@@ -292,14 +298,17 @@ public:
      * We initialize the height to -1 for the same reason as we do in SproutNoteData.
      * See the comment in that class for a full description.
      */
-    SaplingNoteData() : witnessHeight {-1}, nullifier() { }
-    SaplingNoteData(libzcash::SaplingIncomingViewingKey ivk) : ivk {ivk}, witnessHeight {-1}, nullifier() { }
-    SaplingNoteData(libzcash::SaplingIncomingViewingKey ivk, uint256 n) : ivk {ivk}, witnessHeight {-1}, nullifier(n) { }
+    SaplingNoteData() : witnessHeight {-1}, nullifier(), witnessRootValidated {false} { }
+    SaplingNoteData(libzcash::SaplingIncomingViewingKey ivk) : ivk {ivk}, witnessHeight {-1}, nullifier(), witnessRootValidated {false} { }
+    SaplingNoteData(libzcash::SaplingIncomingViewingKey ivk, uint256 n) : ivk {ivk}, witnessHeight {-1}, nullifier(n), witnessRootValidated {false} { }
 
     std::list<SaplingWitness> witnesses;
     int witnessHeight;
     libzcash::SaplingIncomingViewingKey ivk;
     boost::optional<uint256> nullifier;
+
+    //In Memory Only
+    bool witnessRootValidated;
 
     ADD_SERIALIZE_METHODS;
 
@@ -797,18 +806,14 @@ public:
 
 protected:
 
-    void ClearSingleNoteWitnessCache(SaplingNoteData* nd);
-    int WitnessMinimumHeight(const uint256& nullifier, int nWitnessHeight, int nMinimumHeight);
-    int VerifyAndSetInitialWitness(const CBlockIndex* pindex);
-    void BuildWitnessCache(const CBlockIndex* pindex, bool witnessOnly);
+    int SproutWitnessMinimumHeight(const uint256& nullifier, int nWitnessHeight, int nMinimumHeight);
+    int SaplingWitnessMinimumHeight(const uint256& nullifier, int nWitnessHeight, int nMinimumHeight);
 
     /**
      * pindex is the new tip being connected.
      */
-    // void IncrementNoteWitnesses(const CBlockIndex* pindex,
-    //                             const CBlock* pblock,
-    //                             SproutMerkleTree& sproutTree,
-    //                             SaplingMerkleTree& saplingTree);
+     int VerifyAndSetInitialWitness(const CBlockIndex* pindex, bool witnessOnly);
+     void BuildWitnessCache(const CBlockIndex* pindex, bool witnessOnly);
     /**
      * pindex is the old tip being disconnected.
      */
@@ -863,7 +868,6 @@ protected:
 private:
     template <class T>
     void SyncMetaData(std::pair<typename TxSpendMap<T>::iterator, typename TxSpendMap<T>::iterator>);
-    void ChainTipAdded(const CBlockIndex *pindex, const CBlock *pblock, SproutMerkleTree sproutTree, SaplingMerkleTree saplingTree, bool calculateWitnesses);
 
 protected:
     bool UpdatedNoteData(const CWalletTx& wtxIn, CWalletTx& wtx);
@@ -1006,6 +1010,7 @@ public:
     bool IsSpent(const uint256& hash, unsigned int n) const;
     unsigned int GetSpendDepth(const uint256& hash, unsigned int n) const;
     bool IsSproutSpent(const uint256& nullifier) const;
+    unsigned int GetSproutSpendDepth(const uint256& nullifier) const;
     bool IsSaplingSpent(const uint256& nullifier) const;
     unsigned int GetSaplingSpendDepth(const uint256& nullifier) const;
 
@@ -1142,17 +1147,21 @@ public:
     void MarkDirty();
     bool UpdateNullifierNoteMap();
     void UpdateNullifierNoteMapWithTx(const CWalletTx& wtx);
+    void UpdateSproutNullifierNoteMapWithTx(CWalletTx& wtx);
     void UpdateSaplingNullifierNoteMapWithTx(CWalletTx& wtx);
-    void UpdateSaplingNullifierNoteMapForBlock(const CBlock* pblock);
+    void UpdateNullifierNoteMapForBlock(const CBlock* pblock);
     bool AddToWallet(const CWalletTx& wtxIn, bool fFromLoadWallet, CWalletDB* pwalletdb);
     void SyncTransaction(const CTransaction& tx, const CBlock* pblock);
-    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate);
+    bool AddToWalletIfInvolvingMe(CWalletDB& walletdb, const CTransaction& tx, const CBlock* pblock, bool fUpdate);
     void EraseFromWallet(const uint256 &hash);
     void WitnessNoteCommitment(
          std::vector<uint256> commitments,
          std::vector<boost::optional<SproutWitness>>& witnesses,
          uint256 &final_anchor);
-    void DeleteWalletTransactions(const CBlockIndex* pindex, bool runImmediately);
+    void ReorderWalletTransactions(std::map<std::pair<int,int>, CWalletTx> &mapSorted, int64_t &maxOrderPos);
+    void UpdateWalletTransactionOrder(std::map<std::pair<int,int>, CWalletTx> &mapSorted, bool resetOrder);
+    void DeleteTransactions(std::vector<uint256> &removeTxs);
+    void DeleteWalletTransactions(const CBlockIndex* pindex);
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
     void ReacceptWalletTransactions();
     void ResendWalletTransactions(int64_t nBestBlockTime);
