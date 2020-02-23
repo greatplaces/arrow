@@ -34,7 +34,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/thread.hpp>
 
-#include <malloc.h>
+// #include <malloc.h>
 
 using namespace std;
 using namespace libzcash;
@@ -2760,7 +2760,7 @@ void CWallet::WitnessNoteCommitment(std::vector<uint256> commitments,
  * re-added during intial load rescan.
  */
 
-void CWallet::ReorderWalletTransactions(std::map<std::pair<int,int>, CWalletTx> &mapSorted, int64_t &maxOrderPos) {
+void CWallet::ReorderWalletTransactions(std::map<std::pair<int,int>, CWalletTx*> &mapSorted, int64_t &maxOrderPos) {
     LOCK2(cs_main, cs_wallet);
 
     int maxSortNumber = chainActive.Tip()->nHeight + 1;
@@ -2786,14 +2786,14 @@ void CWallet::ReorderWalletTransactions(std::map<std::pair<int,int>, CWalletTx> 
  /**Update the nOrderPos with passed in ordered map.
  */
 
-void CWallet::UpdateWalletTransactionOrder(std::map<std::pair<int,int>, CWalletTx> &mapSorted, bool resetOrder) {
+void CWallet::UpdateWalletTransactionOrder(std::map<std::pair<int,int>, CWalletTx*> &mapSorted, bool resetOrder) {
   LOCK2(cs_main, cs_wallet);
 
   int64_t previousPosition = 0;
   std::map<const uint256, CWalletTx*> mapUpdatedTxs;
 
   //Check the postion of each transaction relative to the previous one.
-  for (map<std::pair<int,int>, CWalletTx>::iterator it = mapSorted.begin(); it != mapSorted.end(); ++it) {
+  for (map<std::pair<int,int>, CWalletTx*>::iterator it = mapSorted.begin(); it != mapSorted.end(); ++it) {
       CWalletTx* pwtx = it->second;
       const uint256 wtxid = pwtx->GetHash();
 
@@ -2841,7 +2841,7 @@ void CWallet::DeleteTransactions(std::vector<uint256> &removeTxs) {
         }
     }
 
-    malloc_trim(0);
+    // malloc_trim(0);
 }
 
 void CWallet::DeleteWalletTransactions(const CBlockIndex* pindex) {
