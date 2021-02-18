@@ -17,6 +17,7 @@
 #include "consensus/validation.h"
 #include "deprecation.h"
 #include "init.h"
+#include "key_io.h"
 #include "merkleblock.h"
 #include "metrics.h"
 #include "net.h"
@@ -3986,6 +3987,30 @@ bool ContextualCheckBlock(
         }
     }
 
+    //After Founders rewards have been killed previous founders rewards will not be
+    //allowed in coinbase transactions.
+    if (nHeight > consensusParams.GetLastFoundersRewardBlockHeight()) {
+
+        std::vector<std::string> vAllFounders = chainparams.GetAllFoundersAddresses();
+        std::vector<CScript> vAllFounderScripts;
+        for (int i = 0; i < vAllFounders.size(); i++) {
+            CTxDestination address = DecodeDestination(vAllFounders[i]);
+            assert(IsValidDestination(address));
+            assert(boost::get<CScriptID>(&address) != nullptr);
+            CScriptID scriptID = boost::get<CScriptID>(address); // address is a boost variant
+            CScript script = CScript() << OP_HASH160 << ToByteVector(scriptID) << OP_EQUAL;
+            vAllFounderScripts.push_back(script);
+        }
+
+
+        BOOST_FOREACH(const CTxOut& output, block.vtx[0].vout) {
+            for (int i = 0; i < vAllFounderScripts.size(); i++) {
+                if (output.scriptPubKey == vAllFounderScripts[i]) {
+                    return state.DoS(100, error("%s: founders reward found post fork", __func__), REJECT_INVALID, "cb-founders-reward-post-fork");
+                }
+            }
+        }
+    }
     return true;
 }
 

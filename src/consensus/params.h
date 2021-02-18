@@ -113,9 +113,12 @@ struct Params {
     int nPostBlossomSubsidyHalvingInterval;
 
     int Halving(int nHeight) const;
+    int nKillFoundersRewardAtBlock;
 
     int GetLastFoundersRewardBlockHeight() const {
-        return nPreBlossomSubsidyHalvingInterval * 2 - 1;
+        int a = nPreBlossomSubsidyHalvingInterval * 2 - 1;
+        int b = nKillFoundersRewardAtBlock;
+        return (a < b) ? a : b;
     }
 
     /** Used to check majorities for block version upgrade */

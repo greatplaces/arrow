@@ -88,6 +88,7 @@ public:
         consensus.nSubsidySlowStartInterval = 0;
         consensus.nPreBlossomSubsidyHalvingInterval = 2803200;
         consensus.nPostBlossomSubsidyHalvingInterval = 2803200;
+        consensus.nKillFoundersRewardAtBlock = 1129500;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 4000;
@@ -238,6 +239,7 @@ public:
         consensus.nSubsidySlowStartInterval = 0;
         consensus.nPreBlossomSubsidyHalvingInterval = 2803200;
         consensus.nPostBlossomSubsidyHalvingInterval = 2803200;
+        consensus.nKillFoundersRewardAtBlock = consensus.nPreBlossomSubsidyHalvingInterval * 2;
         consensus.nMajorityEnforceBlockUpgrade = 51;
         consensus.nMajorityRejectBlockOutdated = 75;
         consensus.nMajorityWindow = 400;
@@ -380,6 +382,7 @@ public:
         consensus.nSubsidySlowStartInterval = 0;
         consensus.nPreBlossomSubsidyHalvingInterval = Consensus::PRE_BLOSSOM_REGTEST_HALVING_INTERVAL;
         consensus.nPostBlossomSubsidyHalvingInterval = Consensus::POST_BLOSSOM_REGTEST_HALVING_INTERVAL;
+        consensus.nKillFoundersRewardAtBlock = consensus.nPreBlossomSubsidyHalvingInterval * 2;
         consensus.nMajorityEnforceBlockUpgrade = 750;
         consensus.nMajorityRejectBlockOutdated = 950;
         consensus.nMajorityWindow = 1000;
@@ -591,6 +594,19 @@ std::string CChainParams::GetFoundersRewardAddressAtIndex(int i) const {
 
     return vFoundersRewardAddress[i];
 }
+
+
+std::vector<std::string> CChainParams::GetAllFoundersAddresses() const {
+
+      std::vector<std::string> vAllFounders = vFoundersRewardAddress;
+
+      for(int i = 0; i < vFoundersRewardReplacementAddress.size(); i++) {
+          vAllFounders.push_back(vFoundersRewardReplacementAddress[i].address);
+      }
+
+      return vAllFounders;
+}
+
 
 void UpdateNetworkUpgradeParameters(Consensus::UpgradeIndex idx, int nActivationHeight)
 {
