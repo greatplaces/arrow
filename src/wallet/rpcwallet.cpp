@@ -36,7 +36,7 @@
 #include <stdint.h>
 
 #include <boost/assign/list_of.hpp>
-#include <utf8.h>
+
 #include <univalue.h>
 
 #include <numeric>
@@ -3584,7 +3584,8 @@ UniValue z_viewtransaction(const UniValue& params, bool fHelp)
                 memo.rend(),
                 [](unsigned char v) { return v != 0; });
             std::string memoStr(memo.begin(), end.base());
-            if (utf8::is_valid(memoStr)) {
+	    //            if (utf8::is_valid(memoStr))
+	      {
                 entry.push_back(Pair("memoStr", memoStr));
             }
         }
